@@ -3,10 +3,10 @@
     "destination_port":5001,
     "destination_ip":"localhost",
     "protocol":"MQTT",
-    "display_graph": true,
+    "display_graph": false,
     "hierarchy":{
         "dist_type":"poisson",
-        "dist":[1,4,4],
+        "dist":[1,4,5],
         "lambda": 10,
         "k":8
     }

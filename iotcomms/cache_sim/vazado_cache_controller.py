@@ -11,7 +11,7 @@ import json
 
 def get_prime(start):
     
-    end = start + 25
+    end = start + 100
     
     for i in range(start, end+1):
         if i>1:
@@ -47,7 +47,7 @@ class CacheController:
         self.epoch_size = 2^31
         self.epoch = 0
         self.color = 0
-        self.probe = 1
+        self.probe = 5
         self.caches = {}
         self.caches["dev"] = Cache(dev_cache_capacity , dev_cache_type , "dev") 
         self.caches["area"] = Cache(area_cache_capacity , area_cache_type , "area")
@@ -58,6 +58,7 @@ class CacheController:
         self.hash_capacity = {}
         self.hash_capacity["dev"] = get_prime(int(dev_cache_capacity*self.hash_multiplier))
         self.hash_capacity["area"] = get_prime(int(area_cache_capacity*self.hash_multiplier))
+        print("CACHE CAPACITY " , self.hash_capacity["area"], area_cache_capacity, self.hash_multiplier)
         self.hash_capacity["ram"] = get_prime(int(area_cache_capacity*self.ram_hash_multiplier))
         print("Dev hash Size ", self.hash_capacity["dev"], " Area hash Size ", self.hash_capacity["area"], " RAM Hash Size ", self.hash_capacity["ram"])
         self.stats = {}
@@ -94,7 +95,7 @@ class CacheController:
     def get(self, key , topic , hash_type):
         topicz = topic
         if self.controller_type != "LRUQUAD" and self.controller_type != "LRUQUADD":
-            #print("HASH GET , " ,  hash_type , " topic ", topic, " key " , key, " controller type ", self.controller_type)
+            #print("HASH GET" ,  hash_type , " topic ", topic, " key " , key, " controller type ", self.controller_type)
             if self.hash[hash_type][key].valid == False:
                 #print("hash miss " , hash_type)
                 return [0 , key]
@@ -113,21 +114,21 @@ class CacheController:
             
             max_probbed = key
             if self.hash[hash_type][key].valid == False:
-                print("hash miss 1 invalid" , key)
+                #print("hash miss 1 invalid" , key)
                 return [0, key]
             else:
                   
                 key2 = (key % (self.hash_capacity[hash_type] - 2))
                 for i in range(self.probe):
-                    print("START PROBBING")  
+                    #print("START PROBBING")  
                     if self.hash[hash_type][key2].valid == False:
-                        print("hash miss 2 invalid")
+                        #print("hash miss 2 invalid")
                         return [0 , key2]
                     elif self.hash[hash_type][key2].topic != topic:
                         key2 = (key + i*key2) % self.hash_capacity[hash_type]   
                         
                         if self.controller_type == "LRUQUADD":
-                            print("k2 depth ", self.hash[hash_type][key2].depth, "max probbed depth" , self.hash[hash_type][max_probbed].depth)
+                            #print("k2 depth ", self.hash[hash_type][key2].depth, "max probbed depth" , self.hash[hash_type][max_probbed].depth)
                             if self.hash[hash_type][key2].depth is None:
                                 max_probbed = key2
 
@@ -146,7 +147,7 @@ class CacheController:
                         else:
                             #print("Hash HIT Cache MISS")
                             return [0 , key2]    
-                print("Probe Miss key " , max_probbed)    
+                #print("Probe Miss key " , max_probbed)    
                 return [1 , max_probbed]
 
     def stats_update(self, stats_name, cache_type, index):
@@ -163,8 +164,9 @@ class CacheController:
         areas = topic.split('/')
         areas.pop()
         areas.pop(0)
+        #print(areas)
         #Check dev chache for topic
-        topic_key = hash(topic) % self.hash_capacity["dev"]
+        topic_key = hash(topic) % self.hash_capacity["area"]
         
         
         
@@ -194,6 +196,27 @@ class CacheController:
                         
                         if put_ret.valid:
                             self.hash["area"][put_ret.hash_key].valid = False
+        else:
+            get_return = self.get(topic_key , topic , "area")
+                                
+            if get_return[0] < 2:
+                
+                self.stats_update(self.miss_dict[get_return[0]] , "area" , 0)
+                rnode = Node("" , topic , get_return[1], None)
+                rnode.valid = True
+                hash_node = HashNode(topic)
+                hash_node.valid = True
+                
+                self.hash["area"][get_return[1]] = hash_node
+                put_ret = self.caches["area"].put(topic , rnode)
+                #print("Calling get again " , topic_key, "topic " , topic , " depth " , depth, " valid ", self.hash["area"][get_return[1]].valid)
+                #n_ret = self.get(topic_key , topic , "area")
+                
+                
+                if put_ret:
+                    
+                    if put_ret.valid:
+                        self.hash["area"][put_ret.hash_key].valid = False
                     
         
     def print_stats(self):
@@ -316,7 +339,7 @@ class VazadoCacheController:
             else:        
                 key2 = (key + i*key2) % self.hash_capacity[hash_type]  
 
-        print("MAXXXXXXXX PRROOBEEE Miss key " , max_probbed , self.hash[hash_type][key2].topic)    
+        #print("MAXXXXXXXX PRROOBEEE Miss key " , max_probbed , self.hash[hash_type][key2].topic)    
         if invalid > -1:
             max_probbed = invalid
             miss = 0

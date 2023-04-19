@@ -45,7 +45,7 @@ class APP():
         while len(L) > 0:
             degs = L.pop(0)
             
-            print("depth ", len(L))    
+            #print("depth ", len(L))    
             for d in degs:
                 
                 node = Q.pop(0)

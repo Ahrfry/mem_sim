@@ -150,7 +150,7 @@ class CacheController:
 
     def get(self, key , topic , hash_type):
         topicz = topic
-        if self.controller_type != "LRUQUAD" and self.controller_type != "LRUQUADD":
+        if self.controller_type != "LRUQUAD" and self.controller_type != "LRUQUAD":
             #print("HASH GET , " ,  hash_type , " topic ", topic, " key " , key, " controller type ", self.controller_type)
             if self.hash[hash_type][key].valid == False:
                 #print("hash miss " , hash_type)
@@ -183,7 +183,7 @@ class CacheController:
                         key2 = (key + i*key2) % self.hash_capacity[hash_type]   
                         if self.controller_type == "LRUQUADD":
                             self.hash[hash_type][key2].probe_count = self.hash[hash_type][key2].probe_count + 1 
-                            #print("GET PROBING key " , key, " key2 " , key2 , " prob count ", self.hash[hash_type][key2].probe_count)
+                            print("GET PROBING key " , key, " key2 " , key2 , " prob count ", self.hash[hash_type][key2].probe_count)
                             if self.hash[hash_type][max_probbed].probe_count < self.hash[hash_type][key2].probe_count:
                                 max_probbed = key2
                         else:
@@ -242,7 +242,30 @@ class CacheController:
                         
                         if put_ret.valid:
                             self.hash["area"][put_ret.hash_key].valid = False
+        else:
+
+            topic_key = hash(topic) % self.hash_capacity["area"]
+            get_return = self.get(topic_key , topic , "area")
+                                
+            if get_return[0] < 2:
+                
+                self.stats_update(self.miss_dict[get_return[0]] , "area" , depth)
+                rnode = Node("" , topic , get_return[1])
+                rnode.valid = True
+                hash_node = HashNode(topic)
+                hash_node.valid = True
+                
+                self.hash["area"][get_return[1]] = hash_node
+                put_ret = self.caches["area"].put(topic , rnode)
+                #print("Calling get again " , topic_key, "topic " , topic , " depth " , depth, " valid ", self.hash["area"][get_return[1]].valid)
+                #n_ret = self.get(topic_key , topic , "area")
+                
+                
+                if put_ret:
                     
+                    if put_ret.valid:
+                        self.hash["area"][put_ret.hash_key].valid = False
+
         
     def print_stats(self):
         for cache , value in self.stats.items():

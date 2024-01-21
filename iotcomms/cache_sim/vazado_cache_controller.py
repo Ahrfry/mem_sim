@@ -66,6 +66,7 @@ class CacheController:
         self.stats["dev"] = []
         self.stats["dev"].append({"cache miss":0 , "cache miss conflict":0})
         self.stats["area"] = []
+        self.bytes_missed = 0
         
         for i in range(self.hash_capacity["dev"]):
             self.hash["dev"][i] = HashNode("")
@@ -150,21 +151,24 @@ class CacheController:
                 #print("Probe Miss key " , max_probbed)    
                 return [1 , max_probbed]
 
-    def stats_update(self, stats_name, cache_type, index):
+    def stats_update(self, stats_name, cache_type, index, cost):
+        if cache_type == "area":
+            self.stats[cache_type][index][stats_name] = self.stats[cache_type][index][stats_name] + 1
+        #print("Byte cost ", cache_type, cost)
+        self.bytes_missed+= cost
         
-        self.stats[cache_type][index][stats_name] = self.stats[cache_type][index][stats_name] + 1
-        
     
     
     
     
-    def FE2HASH(self , topic):
+    def FE2HASH(self , topic, depth_cost):
         
         self.update_window()
         areas = topic.split('/')
+        #print("Before ", areas)
         areas.pop()
         areas.pop(0)
-        #print(areas)
+        #print("After ", areas)
         #Check dev chache for topic
         topic_key = hash(topic) % self.hash_capacity["area"]
         
@@ -175,12 +179,12 @@ class CacheController:
             #check area cache for areas
             for depth , topic in enumerate(areas):
                 topic_key = hash(topic) % self.hash_capacity["area"] 
-        
+                
                 get_return = self.get(topic_key , topic , "area")
                                 
                 if get_return[0] < 2:
                    
-                    self.stats_update(self.miss_dict[get_return[0]] , "area" , depth)
+                    self.stats_update(self.miss_dict[get_return[0]] , "area" , depth, depth_cost[depth])
                     rnode = Node("" , topic , get_return[1], None)
                     rnode.valid = True
                     hash_node = HashNode(topic)
@@ -188,7 +192,7 @@ class CacheController:
                     hash_node.depth = depth
                     self.hash["area"][get_return[1]] = hash_node
                     put_ret = self.caches["area"].put(topic , rnode)
-                    #print("Calling get again " , topic_key, "topic " , topic , " depth " , depth, " valid ", self.hash["area"][get_return[1]].valid)
+                    #print("Calling get again " , topic_key, "topic " , topic , " depth " , depth,"cost", depth_cost[depth] ," valid ", self.hash["area"][get_return[1]].valid)
                     #n_ret = self.get(topic_key , topic , "area")
                    
                    
@@ -196,12 +200,13 @@ class CacheController:
                         
                         if put_ret.valid:
                             self.hash["area"][put_ret.hash_key].valid = False
+            self.stats_update(self.miss_dict[0] , "dev" , depth, depth_cost[len(depth_cost)-1])
         else:
             get_return = self.get(topic_key , topic , "area")
                                 
             if get_return[0] < 2:
                 
-                self.stats_update(self.miss_dict[get_return[0]] , "area" , 0)
+                self.stats_update(self.miss_dict[get_return[0]] , "area" , 0, sum(depth_cost))
                 rnode = Node("" , topic , get_return[1], None)
                 rnode.valid = True
                 hash_node = HashNode(topic)
@@ -219,10 +224,13 @@ class CacheController:
                         self.hash["area"][put_ret.hash_key].valid = False
                     
         
-    def print_stats(self):
+    def print_stats(self, n_messages):
         for cache , value in self.stats.items():
+            
             for stat_type in value:
-                print(cache , stat_type)
+               
+                print((stat_type["cache miss"] + stat_type["cache miss conflict"])/n_messages)
+        print("Total bytes missed ", (self.bytes_missed/1000000))
 
 class VazadoCacheController:
     def __init__(self, dev_cache_capacity, area_cache_capacity, dev_cache_type, area_cache_type, hash_multiplier):

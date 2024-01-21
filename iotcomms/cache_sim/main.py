@@ -24,12 +24,12 @@ config = json.load(f)
 
 depth = 2
 
-set_lam = 70
+set_lam = 500
 set_k = 1
 tot = 0
-num_of_apps = 5
-num_of_experiments = 5
-k_lam_rate = 10
+num_of_apps = 1
+num_of_experiments = 1
+k_lam_rate = 100
 
 def full_poisson():
     dist = []
@@ -63,15 +63,19 @@ def poisson_dev(dist, lam):
     return [devs, k]
 
 
-
-
-
-
-
-
 app = []
 app_bucket = [] 
 devs = None
+#TOP
+layer_cost=[[620,128,104,100], [332,84,52,52], [60,88,16,20]]
+#PARAM + kernel
+#layer_cost=[[920,128,104,100], [488,96,52,52], [72,100,16,20]]
+
+#PARAM
+#layer_cost=[[116,80,152,988], [68,48,100,508], [0,52,64,92]]
+#NONE
+#layer_cost=[[0, 0, 232, 1104], [0, 0, 148, 576], [0, 0, 76, 132]]
+
 
 for j in range(num_of_experiments):
     total_area = 0
@@ -82,14 +86,15 @@ for j in range(num_of_experiments):
         for a in dist:
             total_area += np.sum(a)
 
-        res = poisson_dev(dist, (set_lam - j*k_lam_rate))
+        res = poisson_dev(dist, (set_lam ))
         devs = res[0]
         list_dev = devs.tolist()
         total_devices = np.sum(list_dev)
         dist.append(list_dev)
-        app.append(APP(dist , config["topic_size"]))
+        #print(dist)
+        app.append(APP(dist , config["topic_size"], layer_cost[i]))
 
-    app_bucket.append([total_area, set_lam - j*k_lam_rate , res[1], devs, app, total_devices])
+    app_bucket.append([total_area, set_lam , res[1], devs, app, total_devices])
 
 #print(dist[len(dist)-1])
 
@@ -114,11 +119,11 @@ for k in range(num_of_experiments):
     
    
 
-    hash_m = 1
-    cache_size_dev = 5000
-    cache_size_dev_vazado = 3800
+    hash_m = 6.5
+    cache_size_dev = 0
+    cache_size_dev_vazado = 0
     #cache_size_area = app_bucket[k][0]
-    cache_size_area = 5407
+    cache_size_area = 900
     print("Number of Areas ", app_bucket[k][0], " lam ", app_bucket[k][1], " k ", app_bucket[k][2], 'devices', app_bucket[k][5])
     plt.hist(devs, bins=np.arange(devs.min(), devs.max()+1), align='left')
     #plt.show()
@@ -127,7 +132,7 @@ for k in range(num_of_experiments):
     #quadd_cache_controller = VazadoCacheController(cache_size_dev_vazado , cache_size_area, "LRUQUADD" , "LRUQUADD", hash_m)
     flat_cache_controller = CacheController(cache_size_dev , cache_size_area, "FLAT" , "FLAT" , hash_m) 
     lrum_cache_controller = CacheController(cache_size_dev , cache_size_area, "LRU" , "LRU", hash_m)
-    #quad_cache_controller = CacheController(cache_size_dev_vazado , cache_size_area, "LRUQUAD" , "LRUQUAD", hash_m)
+    quad_cache_controller = CacheController(cache_size_dev_vazado , cache_size_area, "LRUQUAD" , "LRUQUAD", hash_m)
     quadd_cache_controller = CacheController(cache_size_dev_vazado , cache_size_area, "LRUQUADD" , "LRUQUADD", hash_m)
 
 
@@ -135,11 +140,13 @@ for k in range(num_of_experiments):
     countelse = 0
     total_messages = 1000000
 
-
+    
+       
 
 
     for i in range(total_messages):
-        rand_app = random.randint(0 , 0)
+        rand_app = random.randint(0 , 2)
+        rand_app = 0
         rand = random.randint(0 , 99)
         n_dev = len(app[rand_app].devices) -1
         most_frequent = int(0.99*n_dev)
@@ -156,19 +163,23 @@ for k in range(num_of_experiments):
     
         topic = app[rand_app].compose_topic(app[rand_app].devices[index])
         
-        flat_cache_controller.FE2HASH(topic)
-        lrum_cache_controller.FE2HASH(topic)
-        #quad_cache_controller.FE2HASH(topic)
-        quadd_cache_controller.FE2HASH(topic)
+        flat_cache_controller.FE2HASH(topic, layer_cost[rand_app])
+        lrum_cache_controller.FE2HASH(topic, layer_cost[rand_app])
+        
+        quad_cache_controller.FE2HASH(topic, layer_cost[rand_app])
+        quadd_cache_controller.FE2HASH(topic, layer_cost[rand_app])
 
 
 
     print("FLAT")
-    flat_cache_controller.print_stats()
+    flat_cache_controller.print_stats(total_messages)
     print("LRUM")
-    lrum_cache_controller.print_stats()
+    lrum_cache_controller.print_stats(total_messages)
+    print("QUAD")
+    quad_cache_controller.print_stats(total_messages)
+
     print("QUADD")
-    quadd_cache_controller.print_stats()
+    quadd_cache_controller.print_stats(total_messages)
 
 
 

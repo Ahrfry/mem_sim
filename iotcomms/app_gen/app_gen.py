@@ -23,10 +23,11 @@ class Node:
         self.epoch_color = "white"
         self.parent = parent
         self.depth = None
+        self.cost = 0
 
 class APP():
     
-    def __init__(self, app_distro , topic_size):
+    def __init__(self, app_distro , topic_size, depth_cost):
         
         self.app = []
         self.letters = string.ascii_lowercase
@@ -34,8 +35,9 @@ class APP():
         self.n_topics = 0
         self.devices = []
         self.topic_size = topic_size
+        self.depth_cost = depth_cost
         self.root = self.build_tree(app_distro)
-        
+       
         
     
     def build_tree(self, L):
@@ -50,6 +52,9 @@ class APP():
                 
                 node = Q.pop(0)
                 node.depth = (depth - len(L))
+                depth_temp = node.depth
+                
+               
                 node.children = [Node("",''.join(random.choice(string.ascii_lowercase) for i in range(self.topic_size)), None ,node) for _ in range(d)]
                 
                 if len(L) == 0:
